@@ -1,0 +1,501 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b0c0e">
+<meta name="color-scheme" content="dark">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Soleil">
+<title>Soleil</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<style>
+:root{
+  --bg:#0b0c0e;--fg:#ecebe8;--fg2:#a9adb3;--mut:#6c7178;--line:#1d1f23;--line2:#2a2d32;
+  --sun:#ffa93a;--sun2:#f2762e;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;background:var(--bg);color:var(--fg)}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Inter","Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+  -webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums;
+  overscroll-behavior:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;overflow-x:hidden
+}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+#app{
+  max-width:460px;margin:0 auto;min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;
+  padding:calc(env(safe-area-inset-top) + 10px) 20px calc(env(safe-area-inset-bottom) + 14px)
+}
+header{display:flex;align-items:center;justify-content:space-between;height:48px}
+#place{display:flex;align-items:center;gap:8px;font-size:19px;font-weight:600;letter-spacing:-.01em;padding:8px 0;max-width:80%}
+#place span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#place .chev{color:var(--mut);flex:none}
+#place .pin{color:var(--sun);flex:none;display:none}
+#place.gps .pin{display:block}
+.ib{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;color:var(--fg2);flex:none}
+.ib:active{background:var(--line)}
+#today{opacity:0;pointer-events:none;transition:opacity .2s;color:var(--sun)}
+#today.on{opacity:1;pointer-events:auto}
+
+#sky{flex:1;min-height:210px;position:relative;margin:4px -20px 0;touch-action:pan-y}
+#sky svg,#year svg{position:absolute;inset:0;width:100%;height:100%;display:block;overflow:visible}
+
+.times{display:grid;grid-template-columns:1fr 1fr;margin-top:6px}
+.t{display:flex;flex-direction:column;gap:2px}
+.t.r{align-items:flex-end;text-align:right}
+.t .k{color:var(--mut);height:20px;display:flex;align-items:center}
+.t .v{font-size:52px;font-weight:250;letter-spacing:-.035em;line-height:1;color:var(--fg2);transition:color .2s}
+.t.next .v{color:var(--fg)}
+.t.next .k{color:var(--sun)}
+.t .s{font-size:13px;color:var(--sun);height:18px;margin-top:6px;letter-spacing:.01em}
+
+.date{display:flex;align-items:center;justify-content:space-between;margin-top:22px;height:44px}
+#dlabel{font-size:15px;font-weight:500;color:var(--fg2);display:flex;align-items:center;gap:8px;padding:10px 12px}
+#dlabel i{width:6px;height:6px;border-radius:50%;background:var(--sun);display:none}
+#dlabel.now i{display:block}
+#dlabel.now{color:var(--fg)}
+
+#year{position:relative;height:104px;margin-top:6px;touch-action:none;cursor:ew-resize}
+
+/* sheet */
+#sheet{position:fixed;inset:0;z-index:10;display:flex;flex-direction:column;justify-content:flex-end;visibility:hidden}
+#sheet.on{visibility:visible}
+#sheet .scrim{position:absolute;inset:0;background:rgba(0,0,0,.55);opacity:0;transition:opacity .25s}
+#sheet.on .scrim{opacity:1}
+.panel{
+  position:relative;max-width:460px;width:100%;margin:0 auto;height:82vh;height:82dvh;background:#141518;
+  border-radius:22px 22px 0 0;display:flex;flex-direction:column;transform:translateY(100%);
+  transition:transform .3s cubic-bezier(.2,.8,.2,1);padding-bottom:env(safe-area-inset-bottom)
+}
+#sheet.on .panel{transform:none}
+.grab{width:36px;height:5px;border-radius:3px;background:var(--line2);margin:8px auto 6px}
+.srow{display:flex;gap:8px;padding:8px 16px 12px;align-items:center}
+.field{flex:1;display:flex;align-items:center;gap:8px;background:#1d1f23;border-radius:12px;padding:0 12px;height:44px;color:var(--mut)}
+#q{flex:1;background:none;border:0;outline:0;color:var(--fg);font:inherit;font-size:16px;-webkit-appearance:none;appearance:none;min-width:0}
+#q::placeholder{color:var(--mut)}
+#q::-webkit-search-cancel-button{display:none}
+#gps{background:#1d1f23;width:44px;height:44px;color:var(--sun)}
+#gps.busy svg{animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+#list{list-style:none;overflow-y:auto;flex:1;padding:0 8px 12px;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+#list li{font-variant-numeric:normal;display:flex;align-items:center;justify-content:space-between;padding:0 12px;height:50px;border-radius:12px;font-size:16px;cursor:pointer}
+#list li:active{background:var(--line)}
+#list li small{color:var(--mut);font-size:13px;display:flex;align-items:center;gap:10px}
+#list li.sel{color:var(--sun)}
+#list li svg{display:none}
+#list li.sel svg{display:block}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <button id="place" aria-label="Lieu">
+      <svg class="pin" width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M21 3 3 10.5l7.5 3L13.5 21z"/></svg>
+      <span id="pname">Lyon</span>
+      <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+    </button>
+    <button id="today" class="ib" aria-label="Aujourd'hui">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
+    </button>
+  </header>
+
+  <div id="sky"><svg id="skysvg"></svg></div>
+
+  <div class="times">
+    <div class="t" id="tr">
+      <div class="k"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 19h18M7 19a5 5 0 0 1 10 0M12 4v7M9 7l3-3 3 3"/></svg></div>
+      <div class="v" id="rise">--:--</div>
+      <div class="s" id="rrel"></div>
+    </div>
+    <div class="t r" id="ts">
+      <div class="k"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 19h18M7 19a5 5 0 0 1 10 0M12 4v7M9 8l3 3 3-3"/></svg></div>
+      <div class="v" id="set">--:--</div>
+      <div class="s" id="srel"></div>
+    </div>
+  </div>
+
+  <div class="date">
+    <button class="ib" id="prev" aria-label="Jour précédent"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg></button>
+    <button id="dlabel"><i></i><span id="dtext"></span></button>
+    <button class="ib" id="next" aria-label="Jour suivant"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></button>
+  </div>
+
+  <div id="year"><svg id="yearsvg"></svg></div>
+</div>
+
+<div id="sheet">
+  <div class="scrim"></div>
+  <div class="panel">
+    <div class="grab"></div>
+    <div class="srow">
+      <label class="field">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input id="q" type="search" placeholder="Ville" autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="search">
+      </label>
+      <button id="gps" class="ib" aria-label="Ma position">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.5" fill="currentColor"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+      </button>
+    </div>
+    <ul id="list"></ul>
+  </div>
+</div>
+
+<script>
+'use strict';
+/* ---------- Villes (nom, lat, lon, dép.) ---------- */
+const CITIES = [
+["Agen",44.203,0.616,"47"],["Aix-en-Provence",43.529,5.447,"13"],["Ajaccio",41.919,8.739,"2A"],["Albi",43.929,2.148,"81"],
+["Alençon",48.432,0.091,"61"],["Amiens",49.894,2.296,"80"],["Angers",47.478,-0.563,"49"],["Angoulême",45.648,0.156,"16"],
+["Annecy",45.899,6.129,"74"],["Annemasse",46.193,6.234,"74"],["Arcachon",44.658,-1.168,"33"],["Arles",43.677,4.631,"13"],
+["Arras",50.291,2.778,"62"],["Auch",43.646,0.586,"32"],["Aurillac",44.926,2.440,"15"],["Auxerre",47.798,3.567,"89"],
+["Avignon",43.949,4.806,"84"],["Bar-le-Duc",48.773,5.160,"55"],["Bastia",42.697,9.450,"2B"],["Bayonne",43.493,-1.475,"64"],
+["Beauvais",49.430,2.081,"60"],["Belfort",47.638,6.863,"90"],["Besançon",47.238,6.024,"25"],["Béziers",43.344,3.216,"34"],
+["Biarritz",43.483,-1.559,"64"],["Blois",47.586,1.335,"41"],["Bobigny",48.909,2.440,"93"],["Bordeaux",44.838,-0.579,"33"],
+["Boulogne-sur-Mer",50.726,1.614,"62"],["Bourg-en-Bresse",46.205,5.226,"01"],["Bourges",47.081,2.399,"18"],["Brest",48.390,-4.486,"29"],
+["Briançon",44.899,6.643,"05"],["Brive-la-Gaillarde",45.159,1.533,"19"],["Caen",49.183,-0.371,"14"],["Cahors",44.448,1.441,"46"],
+["Calais",50.951,1.858,"62"],["Cannes",43.552,7.017,"06"],["Carcassonne",43.213,2.351,"11"],["Cergy",49.036,2.076,"95"],
+["Chalon-sur-Saône",46.781,4.854,"71"],["Châlons-en-Champagne",48.957,4.363,"51"],["Chambéry",45.564,5.918,"73"],["Chamonix",45.924,6.869,"74"],
+["Charleville-Mézières",49.773,4.720,"08"],["Chartres",48.446,1.489,"28"],["Châteauroux",46.810,1.691,"36"],["Chaumont",48.111,5.139,"52"],
+["Cherbourg",49.639,-1.616,"50"],["Clermont-Ferrand",45.778,3.087,"63"],["Colmar",48.079,7.358,"68"],["Créteil",48.790,2.455,"94"],
+["Digne-les-Bains",44.092,6.236,"04"],["Dijon",47.322,5.041,"21"],["Dunkerque",51.034,2.377,"59"],["Épinal",48.172,6.449,"88"],
+["Évreux",49.024,1.151,"27"],["Évry-Courcouronnes",48.629,2.441,"91"],["Foix",42.965,1.607,"09"],["Fréjus",43.433,6.737,"83"],
+["Gap",44.559,6.079,"05"],["Grenoble",45.188,5.724,"38"],["Guéret",46.171,1.871,"23"],["La Rochelle",46.160,-1.151,"17"],
+["La Roche-sur-Yon",46.670,-1.426,"85"],["Laval",48.073,-0.770,"53"],["Laon",49.564,3.620,"02"],["Le Havre",49.494,0.108,"76"],
+["Le Mans",48.006,0.199,"72"],["Le Puy-en-Velay",45.043,3.885,"43"],["Lille",50.629,3.057,"59"],["Limoges",45.834,1.261,"87"],
+["Lons-le-Saunier",46.675,5.555,"39"],["Lorient",47.748,-3.370,"56"],["Lourdes",43.095,-0.046,"65"],["Lyon",45.764,4.836,"69"],
+["Mâcon",46.307,4.828,"71"],["Marseille",43.296,5.370,"13"],["Melun",48.539,2.661,"77"],["Mende",44.518,3.500,"48"],
+["Metz",49.119,6.176,"57"],["Montauban",44.018,1.355,"82"],["Mont-de-Marsan",43.890,-0.500,"40"],["Montélimar",44.558,4.751,"26"],
+["Montpellier",43.611,3.877,"34"],["Moulins",46.566,3.333,"03"],["Mulhouse",47.750,7.336,"68"],["Nancy",48.692,6.184,"54"],
+["Nanterre",48.892,2.207,"92"],["Nantes",47.218,-1.554,"44"],["Narbonne",43.184,3.004,"11"],["Nevers",46.990,3.159,"58"],
+["Nice",43.710,7.262,"06"],["Nîmes",43.837,4.360,"30"],["Niort",46.323,-0.465,"79"],["Orléans",47.903,1.909,"45"],
+["Paris",48.857,2.352,"75"],["Pau",43.296,-0.370,"64"],["Périgueux",45.184,0.721,"24"],["Perpignan",42.699,2.895,"66"],
+["Poitiers",46.580,0.340,"86"],["Porto-Vecchio",41.591,9.279,"2A"],["Privas",44.735,4.599,"07"],["Quimper",47.996,-4.102,"29"],
+["Reims",49.258,4.032,"51"],["Rennes",48.117,-1.678,"35"],["Roanne",46.036,4.068,"42"],["Rodez",44.350,2.575,"12"],
+["Rouen",49.443,1.100,"76"],["Saint-Brieuc",48.514,-2.765,"22"],["Saint-Étienne",45.440,4.387,"42"],["Saint-Lô",49.116,-1.091,"50"],
+["Saint-Malo",48.649,-2.026,"35"],["Saint-Nazaire",47.273,-2.214,"44"],["Saint-Tropez",43.270,6.640,"83"],["Sète",43.403,3.693,"34"],
+["Strasbourg",48.573,7.752,"67"],["Tarbes",43.233,0.078,"65"],["Toulon",43.124,5.928,"83"],["Toulouse",43.605,1.444,"31"],
+["Tours",47.394,0.685,"37"],["Troyes",48.297,4.074,"10"],["Tulle",45.267,1.770,"19"],["Valence",44.933,4.892,"26"],
+["Vannes",47.658,-2.760,"56"],["Versailles",48.805,2.120,"78"],["Vesoul",47.622,6.155,"70"],["Vichy",46.128,3.426,"03"],
+["Vienne",45.525,4.874,"38"],["Villefranche-sur-Saône",45.989,4.719,"69"],["Villeurbanne",45.767,4.880,"69"]
+];
+const DEFAULT = {n:"Lyon",lat:45.764,lon:4.836};
+const TZ = 'Europe/Paris';
+const $ = s => document.getElementById(s);
+const NS = 'http://www.w3.org/2000/svg';
+
+/* ---------- Soleil (algorithme type SunCalc / NOAA) ---------- */
+const PI = Math.PI, rad = PI/180, DAY = 864e5, J1970 = 2440588, J2000 = 2451545, E = rad*23.4397, J0 = 0.0009;
+const toDays = ms => ms/DAY - 0.5 + J1970 - J2000;
+const fromJ = j => (j + 0.5 - J1970) * DAY;
+const meanAnom = d => rad*(357.5291 + 0.98560028*d);
+const eclLon = M => M + rad*(1.9148*Math.sin(M) + 0.02*Math.sin(2*M) + 0.0003*Math.sin(3*M)) + rad*102.9372 + PI;
+const decl = L => Math.asin(Math.sin(E)*Math.sin(L));
+const rAsc = L => Math.atan2(Math.sin(L)*Math.cos(E), Math.cos(L));
+
+function altitude(ms, lat, lon){
+  const d = toDays(ms), L = eclLon(meanAnom(d)), dec = decl(L);
+  const H = rad*(280.16 + 360.9856235*d) + rad*lon - rAsc(L), phi = rad*lat;
+  return Math.asin(Math.sin(phi)*Math.sin(dec) + Math.cos(phi)*Math.cos(dec)*Math.cos(H)) / rad;
+}
+function sunTimes(ms, lat, lon, h = -0.833){
+  const lw = -rad*lon, phi = rad*lat, d = toDays(ms);
+  const n = Math.round(d - J0 - lw/(2*PI));
+  const ds = J0 + lw/(2*PI) + n;
+  const M = meanAnom(ds), L = eclLon(M), dec = decl(L);
+  const corr = 0.0053*Math.sin(M) - 0.0069*Math.sin(2*L);
+  const Jnoon = J2000 + ds + corr;
+  const c = (Math.sin(h*rad) - Math.sin(phi)*Math.sin(dec)) / (Math.cos(phi)*Math.cos(dec));
+  if (c < -1 || c > 1) return {noon: fromJ(Jnoon)};
+  const Jset = J2000 + J0 + (Math.acos(c) + lw)/(2*PI) + n + corr;
+  return {noon: fromJ(Jnoon), rise: fromJ(2*Jnoon - Jset), set: fromJ(Jset)};
+}
+
+/* ---------- Heure de Paris ---------- */
+const DTF = new Intl.DateTimeFormat('en-GB',{timeZone:TZ,hourCycle:'h23',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit'});
+function parts(ms){
+  const o = {}; for (const p of DTF.formatToParts(new Date(ms))) o[p.type] = p.value;
+  return {y:+o.year, m:+o.month, d:+o.day, h:+o.hour % 24, mi:+o.minute, s:+o.second};
+}
+function offset(ms){ const p = parts(ms); return Date.UTC(p.y,p.m-1,p.d,p.h,p.mi,p.s) - Math.floor(ms/1000)*1000; }
+function paris(y,m,d,h=0,mi=0){ const g = Date.UTC(y,m-1,d,h,mi); let t = g - offset(g); return g - offset(t); }
+const hours = ms => { const p = parts(ms); return p.h + p.mi/60 + p.s/3600; };
+const pad = n => String(n).padStart(2,'0');
+const hm = ms => { const p = parts(ms + 30000); return pad(p.h) + ':' + pad(p.mi); };
+const today = () => { const p = parts(Date.now()); return {y:p.y,m:p.m,d:p.d}; };
+const addDays = (D,n) => { const t = new Date(Date.UTC(D.y,D.m-1,D.d+n)); return {y:t.getUTCFullYear(),m:t.getUTCMonth()+1,d:t.getUTCDate()}; };
+const same = (a,b) => a.y===b.y && a.m===b.m && a.d===b.d;
+const DFMT = new Intl.DateTimeFormat('fr-FR',{timeZone:'UTC',weekday:'long',day:'numeric',month:'long'});
+const DFMTY = new Intl.DateTimeFormat('fr-FR',{timeZone:'UTC',weekday:'short',day:'numeric',month:'short',year:'numeric'});
+const dur = ms => { const m = Math.round(ms/6e4); return Math.floor(m/60) + ' h ' + pad(m%60); };
+const rel = ms => { const m = Math.round(ms/6e4); return m < 60 ? 'dans ' + m + ' min' : 'dans ' + Math.floor(m/60) + ' h ' + pad(m%60); };
+
+/* ---------- État ---------- */
+const store = {
+  get(){ try { const v = JSON.parse(localStorage.getItem('soleil.place')); if (v && isFinite(v.lat) && isFinite(v.lon)) return v; } catch(e){} return null; },
+  set(v){ try { localStorage.setItem('soleil.place', JSON.stringify(v)); } catch(e){} }
+};
+const S = {place: store.get() || DEFAULT, date: today()};
+
+/* ---------- SVG helpers ---------- */
+function el(tag, attrs, parent){
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+
+/* ---------- Courbe du jour ---------- */
+function drawSky(t, isToday, now, len, delta){
+  const svg = $('skysvg'), box = $('sky').getBoundingClientRect();
+  const W = box.width, H = box.height; if (!W || !H) return;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.textContent = '';
+  const P = S.place, {y,m,d} = S.date;
+  const padX = 20, padT = 18, padB = 26, y0 = padT + (H - padT - padB) * 0.5, A = 72;
+  const X = h => padX + h/24 * (W - 2*padX);
+  const Y = a => y0 - a/A * (y0 - padT);
+
+  const N = 144, pts = [];
+  for (let k = 0; k <= N; k++){ const ms = paris(y,m,d,0,k*10); pts.push([X(k/N*24), Y(altitude(ms,P.lat,P.lon))]); }
+  const line = 'M' + pts.map(p => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join('L');
+
+  const defs = el('defs',{},svg);
+  const g = el('linearGradient',{id:'gd',x1:0,y1:0,x2:0,y2:1},defs);
+  el('stop',{offset:0,'stop-color':css('--sun'),'stop-opacity':.42},g);
+  el('stop',{offset:1,'stop-color':css('--sun2'),'stop-opacity':.04},g);
+  const glow = el('radialGradient',{id:'gl'},defs);
+  el('stop',{offset:0,'stop-color':css('--sun'),'stop-opacity':.55},glow);
+  el('stop',{offset:1,'stop-color':css('--sun'),'stop-opacity':0},glow);
+  el('rect',{x:0,y:0,width:W,height:y0},el('clipPath',{id:'up'},defs));
+  el('rect',{x:0,y:y0,width:W,height:H},el('clipPath',{id:'dn'},defs));
+
+  // grille horaire
+  for (const h of [6,12,18]){
+    el('line',{x1:X(h),x2:X(h),y1:padT,y2:H-padB+4,stroke:css('--line'),'stroke-width':1},svg);
+    const tx = el('text',{x:X(h),y:H-6,'text-anchor':'middle','font-size':11,fill:css('--mut'),'letter-spacing':'.04em'},svg);
+    tx.textContent = pad(h);
+  }
+  // aire de jour
+  el('path',{d:`M${pts[0][0]},${y0}L` + pts.map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join('L') + `L${pts[N][0]},${y0}Z`,fill:'url(#gd)','clip-path':'url(#up)'},svg);
+  // horizon
+  el('line',{x1:0,x2:W,y1:y0,y2:y0,stroke:css('--line2'),'stroke-width':1},svg);
+  // courbe
+  el('path',{d:line,fill:'none',stroke:css('--line2'),'stroke-width':1.5,'stroke-dasharray':'2 4','stroke-linecap':'round','clip-path':'url(#dn)'},svg);
+  el('path',{d:line,fill:'none',stroke:css('--sun'),'stroke-width':2,'stroke-linejoin':'round','clip-path':'url(#up)'},svg);
+
+  // lever / coucher
+  if (t.rise) for (const ms of [t.rise, t.set])
+    el('circle',{cx:X(hours(ms)),cy:y0,r:4,fill:css('--bg'),stroke:css('--sun'),'stroke-width':2},svg);
+
+  // durée du jour
+  if (t.rise){
+    const cy = y0 + (H - padB - y0) * 0.5;
+    const a = el('text',{x:W/2,y:cy,'text-anchor':'middle','font-size':22,'font-weight':400,fill:css('--fg'),'letter-spacing':'-.01em'},svg);
+    a.textContent = dur(len);
+    const s = Math.round(delta/1000), sign = s > 0 ? '+' : s < 0 ? '−' : '±';
+    const b = el('text',{x:W/2,y:cy+20,'text-anchor':'middle','font-size':12,fill:css('--mut')},svg);
+    b.textContent = Math.abs(s) >= 60 ? `${sign}${Math.round(Math.abs(s)/60)} min` : `${sign}${Math.abs(s)} s`;
+  }
+
+  // maintenant
+  if (isToday){
+    const x = X(hours(now)), alt = altitude(now,P.lat,P.lon), yy = Y(alt), up = alt > -0.833;
+    el('line',{x1:x,x2:x,y1:padT-8,y2:H-padB+4,stroke:css('--fg'),'stroke-opacity':.14,'stroke-width':1},svg);
+    if (up){
+      el('circle',{cx:x,cy:yy,r:26,fill:'url(#gl)'},svg);
+      el('circle',{cx:x,cy:yy,r:7,fill:css('--sun')},svg);
+    } else {
+      el('circle',{cx:x,cy:yy,r:6,fill:css('--bg'),stroke:css('--fg2'),'stroke-width':1.5},svg);
+    }
+  }
+}
+
+/* ---------- Année ---------- */
+let yearCache = null;
+function yearData(){
+  const P = S.place, y = S.date.y, key = y + '|' + P.lat + '|' + P.lon;
+  if (yearCache && yearCache.key === key) return yearCache;
+  const days = [];
+  for (let i = 0; ; i++){
+    const D = addDays({y, m:1, d:1}, i); if (D.y !== y) break;
+    const t = sunTimes(paris(D.y,D.m,D.d,12), P.lat, P.lon);
+    days.push({D, r: hours(t.rise), s: hours(t.set)});
+  }
+  return yearCache = {key, days};
+}
+const doy = D => Math.round((Date.UTC(D.y,D.m-1,D.d) - Date.UTC(D.y,0,1)) / DAY);
+
+function drawYear(){
+  const svg = $('yearsvg'), box = $('year').getBoundingClientRect();
+  const W = box.width, H = box.height; if (!W || !H) return;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.textContent = '';
+  const {days} = yearData(), n = days.length;
+  const top = 4, bot = H - 20;
+  const X = i => i/(n-1) * W, Y = h => top + h/24 * (bot - top);
+
+  el('rect',{x:0,y:top,width:W,height:bot-top,rx:8,fill:'#111214'},svg);
+  // mois
+  const L = 'JFMAMJJASOND';
+  for (let mo = 0; mo < 12; mo++){
+    const i0 = doy({y:S.date.y,m:mo+1,d:1});
+    if (mo) el('line',{x1:X(i0),x2:X(i0),y1:top,y2:bot,stroke:css('--bg'),'stroke-width':1.5},svg);
+    const i1 = mo < 11 ? doy({y:S.date.y,m:mo+2,d:1}) : n;
+    const tx = el('text',{x:(X(i0)+X(i1-1))/2,y:H-4,'text-anchor':'middle','font-size':10,fill:css('--mut')},svg);
+    tx.textContent = L[mo];
+  }
+  // bande de jour
+  let d = 'M' + days.map((o,i) => X(i).toFixed(1)+','+Y(o.r).toFixed(1)).join('L');
+  d += 'L' + days.map((o,i) => X(i).toFixed(1)+','+Y(o.s).toFixed(1)).reverse().join('L') + 'Z';
+  const defs = el('defs',{},svg);
+  const g = el('linearGradient',{id:'yg',x1:0,y1:0,x2:0,y2:1},defs);
+  el('stop',{offset:0,'stop-color':css('--sun'),'stop-opacity':.30},g);
+  el('stop',{offset:.5,'stop-color':css('--sun'),'stop-opacity':.16},g);
+  el('stop',{offset:1,'stop-color':css('--sun2'),'stop-opacity':.30},g);
+  el('path',{d,fill:'url(#yg)'},svg);
+  for (const k of ['r','s'])
+    el('path',{d:'M'+days.map((o,i)=>X(i).toFixed(1)+','+Y(o[k]).toFixed(1)).join('L'),fill:'none',stroke:css('--sun'),'stroke-width':1.25,'stroke-opacity':.8},svg);
+
+  // aujourd'hui
+  const T = today();
+  if (T.y === S.date.y){ const xi = X(doy(T)); el('path',{d:`M${xi-4},${bot+6}h8l-4,-5z`,fill:css('--sun')},svg); }
+  // sélection
+  const si = doy(S.date), xs = X(si), o = days[si];
+  el('line',{x1:xs,x2:xs,y1:top,y2:bot,stroke:css('--fg'),'stroke-opacity':.55,'stroke-width':1.25},svg);
+  for (const h of [o.r, o.s]) el('circle',{cx:xs,cy:Y(h),r:3.5,fill:css('--fg')},svg);
+}
+
+/* ---------- Rendu ---------- */
+function render(){
+  const P = S.place, D = S.date, now = Date.now(), T = today(), isToday = same(D,T);
+  const t = sunTimes(paris(D.y,D.m,D.d,12), P.lat, P.lon);
+  const pD = addDays(D,-1), tp = sunTimes(paris(pD.y,pD.m,pD.d,12), P.lat, P.lon);
+  const len = t.set - t.rise, delta = len - (tp.set - tp.rise);
+
+  $('pname').textContent = P.n;
+  $('place').classList.toggle('gps', !!P.gps);
+  $('rise').textContent = hm(t.rise);
+  $('set').textContent = hm(t.set);
+
+  const next = !isToday ? null : now < t.rise ? 'r' : now < t.set ? 's' : null;
+  $('tr').classList.toggle('next', !isToday || next === 'r');
+  $('ts').classList.toggle('next', !isToday || next === 's');
+  $('rrel').textContent = next === 'r' ? rel(t.rise - now) : '';
+  $('srel').textContent = next === 's' ? rel(t.set - now) : '';
+
+  const dms = Date.UTC(D.y,D.m-1,D.d,12);
+  let lbl = D.y === T.y ? DFMT.format(dms) : DFMTY.format(dms);
+  $('dtext').textContent = lbl.charAt(0).toUpperCase() + lbl.slice(1);
+  $('dlabel').classList.toggle('now', isToday);
+  $('today').classList.toggle('on', !isToday);
+
+  drawSky(t, isToday, now, len, delta);
+  drawYear();
+}
+const go = n => { S.date = addDays(S.date, n); render(); };
+
+/* ---------- Interactions ---------- */
+$('prev').onclick = () => go(-1);
+$('next').onclick = () => go(1);
+$('dlabel').onclick = $('today').onclick = () => { S.date = today(); render(); };
+
+// balayage horizontal sur la courbe
+(() => {
+  let x0 = null, y0 = 0;
+  const sky = $('sky');
+  sky.addEventListener('touchstart', e => { x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; }, {passive:true});
+  sky.addEventListener('touchend', e => {
+    if (x0 === null) return;
+    const dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0; x0 = null;
+    if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.5) go(dx < 0 ? 1 : -1);
+  }, {passive:true});
+})();
+
+// glisser sur l'année
+(() => {
+  const yr = $('year'); let drag = false;
+  const pick = e => {
+    const b = yr.getBoundingClientRect(), n = yearData().days.length;
+    const i = Math.max(0, Math.min(n-1, Math.round((e.clientX - b.left) / b.width * (n-1))));
+    const D = addDays({y:S.date.y,m:1,d:1}, i);
+    if (!same(D, S.date)){ S.date = D; render(); }
+  };
+  yr.addEventListener('pointerdown', e => { drag = true; yr.setPointerCapture(e.pointerId); pick(e); });
+  yr.addEventListener('pointermove', e => { if (drag) pick(e); });
+  const up = () => { drag = false; };
+  yr.addEventListener('pointerup', up); yr.addEventListener('pointercancel', up);
+})();
+
+// clavier (desktop)
+addEventListener('keydown', e => {
+  if ($('sheet').classList.contains('on')) { if (e.key === 'Escape') closeSheet(); return; }
+  if (e.key === 'ArrowLeft') go(-1);
+  if (e.key === 'ArrowRight') go(1);
+});
+
+/* ---------- Choix du lieu ---------- */
+const norm = s => s.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[-'’]/g,' ');
+const CHECK = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-10"/></svg>';
+function fillList(){
+  const q = norm($('q').value.trim()), ul = $('list');
+  const list = CITIES.filter(c => !q || norm(c[0]).includes(q) || c[3].toLowerCase() === q)
+    .sort((a,b) => q ? (norm(a[0]).startsWith(q) ? 0 : 1) - (norm(b[0]).startsWith(q) ? 0 : 1) || a[0].localeCompare(b[0],'fr') : a[0].localeCompare(b[0],'fr'));
+  ul.innerHTML = list.map(c => {
+    const sel = !S.place.gps && S.place.n === c[0];
+    return `<li data-n="${c[0]}"${sel ? ' class="sel"' : ''}><span>${c[0]}</span><small>${c[3]}${CHECK}</small></li>`;
+  }).join('');
+}
+function openSheet(){ $('q').value = ''; fillList(); $('sheet').classList.add('on'); $('list').scrollTop = 0; }
+function closeSheet(){ $('sheet').classList.remove('on'); $('q').blur(); }
+function setPlace(p){ S.place = p; store.set(p); yearCache = null; closeSheet(); render(); }
+
+$('place').onclick = openSheet;
+$('sheet').querySelector('.scrim').onclick = closeSheet;
+$('q').addEventListener('input', fillList);
+$('q').addEventListener('keydown', e => { if (e.key === 'Enter'){ const li = $('list').firstElementChild; if (li) li.click(); } });
+$('list').addEventListener('click', e => {
+  const li = e.target.closest('li'); if (!li) return;
+  const c = CITIES.find(c => c[0] === li.dataset.n);
+  setPlace({n:c[0], lat:c[1], lon:c[2]});
+});
+// glisser la feuille vers le bas pour fermer
+(() => {
+  const panel = $('sheet').querySelector('.panel'); let y0 = null;
+  panel.addEventListener('touchstart', e => { if ($('list').scrollTop <= 0) y0 = e.touches[0].clientY; else y0 = null; }, {passive:true});
+  panel.addEventListener('touchend', e => { if (y0 !== null && e.changedTouches[0].clientY - y0 > 90) closeSheet(); y0 = null; }, {passive:true});
+})();
+
+$('gps').onclick = () => {
+  if (!navigator.geolocation) return;
+  const b = $('gps'); b.classList.add('busy');
+  navigator.geolocation.getCurrentPosition(pos => {
+    b.classList.remove('busy');
+    const {latitude:lat, longitude:lon} = pos.coords;
+    let best = CITIES[0], bd = Infinity;
+    for (const c of CITIES){
+      const dx = (c[2]-lon) * Math.cos(lat*rad), dy = c[1]-lat, dd = dx*dx + dy*dy;
+      if (dd < bd){ bd = dd; best = c; }
+    }
+    setPlace({n:best[0], lat:+lat.toFixed(4), lon:+lon.toFixed(4), gps:true});
+  }, () => b.classList.remove('busy'), {enableHighAccuracy:false, timeout:10000, maximumAge:6e5});
+};
+
+/* ---------- Boucle ---------- */
+new ResizeObserver(() => render()).observe($('sky'));
+let lastDay = today();
+setInterval(() => {
+  const T = today();
+  if (!same(T, lastDay)){ if (same(S.date, lastDay)) S.date = T; lastDay = T; }
+  if (same(S.date, T) && !document.hidden) render();
+}, 30000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden){ const T = today(); if (!same(T,lastDay)){ if (same(S.date,lastDay)) S.date = T; lastDay = T; } render(); } });
+render();
+
+if ('serviceWorker' in navigator && location.protocol.startsWith('http'))
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+</script>
+</body>
+</html>
